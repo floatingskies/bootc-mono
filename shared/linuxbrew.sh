@@ -115,10 +115,25 @@ EOF
 # fresh and consistent across every distro this repo builds.
 if [[ "${#BREW_PACKAGES[@]}" -gt 0 ]]; then
   run_as_brew "
-    set -euo pipefail
+    set -uo pipefail
     export HOMEBREW_NO_AUTO_UPDATE=1
     export HOMEBREW_NO_INSTALL_CLEANUP=1
-    NONINTERACTIVE=1 brew install ${BREW_PACKAGES[*]}
+    if ! NONINTERACTIVE=1 brew install ${BREW_PACKAGES[*]}; then
+      # Formula post-install hooks (ca-certificates, openssl@3, dbus, ...) poke
+      # at the live system and routinely fail inside a build container. The
+      # poured bottles are still usable, so retry the hooks best-effort and
+      # then make sure every formula actually landed.
+      echo '::warning::brew install reported an error; retrying post-install hooks' >&2
+      for pkg in ${BREW_PACKAGES[*]}; do
+        NONINTERACTIVE=1 brew postinstall \"\$pkg\" || true
+      done
+    fi
+    for pkg in ${BREW_PACKAGES[*]}; do
+      NONINTERACTIVE=1 brew list --versions \"\$pkg\" >/dev/null 2>&1 || {
+        echo \"::error::Homebrew failed to install \$pkg\" >&2
+        exit 1
+      }
+    done
   "
 fi
 

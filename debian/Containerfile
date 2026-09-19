@@ -27,7 +27,7 @@ COPY --from=builder /output /
 # shared/apt-retry.sh purges stale lists and retries --fix-missing installs.
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root --mount=type=tmpfs,dst=/boot \
-    /ctx/shared/apt-retry.sh btrfs-progs bubblewrap dosfstools e2fsprogs fdisk firmware-linux-free linux-image-generic netplan.io libnss-resolve libnss-myhostname openssh-server skopeo systemd 'systemd-boot*' systemd-resolved xfsprogs libostree-dev build-essential procps curl file git sudo gnome gdm3 && \
+    /ctx/shared/apt-retry.sh btrfs-progs bubblewrap dosfstools e2fsprogs fdisk firmware-linux-free "linux-image-$(dpkg --print-architecture)" netplan.io libnss-resolve libnss-myhostname openssh-server skopeo systemd 'systemd-boot*' systemd-resolved xfsprogs libostree-dev build-essential procps curl file git sudo gnome gdm3 && \
     cp /boot/vmlinuz-* "$(find /usr/lib/modules -maxdepth 1 -type d | tail -n 1)/vmlinuz" && \
     apt-get clean -y
 
