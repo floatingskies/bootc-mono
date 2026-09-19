@@ -6,20 +6,12 @@ FROM  docker.io/library/ubuntu:questing AS base
 
 FROM base AS builder
 
-# apt can briefly hit an inconsistent index on rolling releases; retry the
-# install against a fresh package list before failing.
-RUN --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root --mount=type=tmpfs,dst=/boot /bin/bash -c '
-    set -euo pipefail
-    PKGS="git curl make build-essential go-md2man libzstd-dev pkgconf libostree-dev ostree clang libclang-dev"
-    rm -f /var/lib/apt/lists/*
-    apt-get update -y
-    status=1
-    for i in 1 2 3; do
-      set -f
-      apt-get install -y --fix-missing $PKGS && { status=0; set +f; break; } || { status=$?; set +f; sleep 15; apt-get update -y; }
-    done
-    [ "$status" -eq 0 ] || exit "$status"
-'
+# apt can briefly hit an inconsistent index; shared/apt-retry.sh purges stale
+# lists and retries --fix-missing installs. (Kept as a script: buildah/podman
+# truncates multi-line quoted RUN commands.)
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root --mount=type=tmpfs,dst=/boot \
+    /ctx/shared/apt-retry.sh git curl make build-essential go-md2man libzstd-dev pkgconf libostree-dev ostree clang libclang-dev
 
 ENV CARGO_HOME=/tmp/rust
 ENV RUSTUP_HOME=/tmp/rust
@@ -31,21 +23,13 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
 FROM base AS system
 COPY --from=builder /output /
 
-# apt can briefly hit an inconsistent index; retry against a fresh list.
-RUN --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root --mount=type=tmpfs,dst=/boot /bin/bash -c '
-    set -euo pipefail
-    PKGS="btrfs-progs bubblewrap dosfstools e2fsprogs fdisk linux-firmware linux-image-generic netplan.io openssh-server systemd-resolved chrony skopeo systemd systemd-boot* xfsprogs libostree-dev dracut build-essential procps curl file git sudo ubuntu-desktop-minimal gdm3"
-    rm -f /var/lib/apt/lists/*
-    apt-get update -y
-    status=1
-    for i in 1 2 3; do
-      set -f
-      apt-get install -y --fix-missing $PKGS && { status=0; set +f; break; } || { status=$?; set +f; sleep 15; apt-get update -y; }
-    done
-    [ "$status" -eq 0 ] || exit "$status"
-    cp /boot/vmlinuz-* "$(find /usr/lib/modules -maxdepth 1 -type d | tail -n 1)/vmlinuz"
+# apt can briefly hit an inconsistent index; shared/apt-retry.sh purges stale
+# lists and retries --fix-missing installs.
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root --mount=type=tmpfs,dst=/boot \
+    /ctx/shared/apt-retry.sh btrfs-progs bubblewrap dosfstools e2fsprogs fdisk linux-firmware linux-image-generic netplan.io openssh-server systemd-resolved chrony skopeo systemd 'systemd-boot*' xfsprogs libostree-dev dracut build-essential procps curl file git sudo ubuntu-desktop-minimal gdm3 && \
+    cp /boot/vmlinuz-* "$(find /usr/lib/modules -maxdepth 1 -type d | tail -n 1)/vmlinuz" && \
     apt-get clean -y
-'
 
 RUN systemctl enable systemd-networkd systemd-resolved ssh gdm && \
     printf 'L! /etc/resolv.conf - - - - /run/systemd/resolve/stub-resolv.conf\n' \
