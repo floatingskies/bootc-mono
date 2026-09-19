@@ -6,6 +6,14 @@
 # truncates multi-line single-quoted RUN commands at the first newline.
 set -euo pipefail
 
+# kdump-tools' kernel post-install hook builds a kdump initrd via
+# initramfs-tools, which cannot determine the root device inside a build
+# container ("failed to determine device for /"). kdump is useless on a bootc
+# image, so pin it out; a negative priority also stops it from being pulled in
+# as a Recommends of the kernel package.
+mkdir -p /etc/apt/preferences.d
+printf 'Package: kdump-tools\nPin: version *\nPin-Priority: -1\n' > /etc/apt/preferences.d/no-kdump
+
 rm -f /var/lib/apt/lists/*
 apt-get update -y
 
