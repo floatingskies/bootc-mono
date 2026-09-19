@@ -50,8 +50,16 @@ RUN --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root \
     /ctx/shared/initramfs.sh
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    cp -a /var/lib/ca-certificates /etc/ssl.ca-certificates && \
     echo "HOME=/var/home" | tee -a "/etc/default/useradd" && \
     /ctx/shared/bootc-rootfs.sh
+
+# bootc-rootfs.sh removed /var (where openSUSE keeps the CA store, e.g.
+# /var/lib/ca-certificates/ca-bundle.pem), which breaks curl/openssl TLS
+# verification. Restore the trust store into the image's /var seed so the
+# brew install below (and the first-boot /var deployment) keeps it.
+RUN cp -a /etc/ssl.ca-certificates /var/lib/ca-certificates && \
+    rm -rf /etc/ssl.ca-certificates
 
 # Daily-driver tooling: Homebrew (persists on /var) + curated CLI addons.
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
