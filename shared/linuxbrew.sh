@@ -83,10 +83,14 @@ install -d -m 0755 \
 
 run_as_brew() {
   local cmd="$1"
+  # Prepend the brew prefix to PATH: these shells are non-login/non-interactive
+  # so /etc/profile.d is never sourced and bare `brew` would not resolve.
+  local brew_env
+  brew_env="export PATH=${BREW_PREFIX}/bin:${BREW_PREFIX}/sbin:\$PATH"
   if command -v runuser >/dev/null 2>&1; then
-    runuser -u "${BREW_USER}" -- /bin/bash -c "${cmd}"
+    runuser -u "${BREW_USER}" -- /bin/bash -c "${brew_env}; ${cmd}"
   else
-    su -s /bin/bash "${BREW_USER}" -c "${cmd}"
+    su -s /bin/bash "${BREW_USER}" -c "${brew_env}; ${cmd}"
   fi
 }
 
