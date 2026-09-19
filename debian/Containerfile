@@ -35,7 +35,7 @@ COPY --from=builder /output /
 # sid can briefly serve an inconsistent apt index; retry against a fresh list.
 RUN --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root --mount=type=tmpfs,dst=/boot /bin/bash -c '
     set -euo pipefail
-    PKGS="btrfs-progs bubblewrap dosfstools e2fsprogs fdisk firmware-linux-free linux-image-generic netplan.io libnss-resolve libnss-myhostname openssh-server skopeo systemd systemd-boot* systemd-resolved xfsprogs libostree-dev build-essential procps curl file git sudo"
+    PKGS="btrfs-progs bubblewrap dosfstools e2fsprogs fdisk firmware-linux-free linux-image-generic netplan.io libnss-resolve libnss-myhostname openssh-server skopeo systemd systemd-boot* systemd-resolved xfsprogs libostree-dev build-essential procps curl file git sudo gnome gdm3"
     rm -f /var/lib/apt/lists/*
     apt-get update -y
     status=1
@@ -48,12 +48,13 @@ RUN --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root --mount=type=tmpfs,
     apt-get clean -y
 '
 
-RUN systemctl enable systemd-networkd systemd-resolved ssh && \
+RUN systemctl enable systemd-networkd systemd-resolved ssh gdm3 && \
     printf 'L! /etc/resolv.conf - - - - /run/systemd/resolve/stub-resolv.conf\n' \
         > /usr/lib/tmpfiles.d/resolv-conf.conf && \
     mkdir -p /etc/netplan && \
     printf 'network:\n  version: 2\n  ethernets:\n    all-en:\n      match:\n        name: en*\n      dhcp4: true\n      dhcp4-overrides:\n        use-domains: true\n      dhcp6: true\n      dhcp6-overrides:\n        use-domains: true\n    all-eth:\n      match:\n        name: eth*\n      dhcp4: true\n      dhcp4-overrides:\n        use-domains: true\n      dhcp6: true\n      dhcp6-overrides:\n        use-domains: true\n' > /etc/netplan/90-default.yaml && \
-    sed -i 's/^#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config || true
+    sed -i 's/^#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config || true && \
+    systemctl set-default graphical.target
 
 RUN --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root \
     --mount=type=bind,from=ctx,source=/,target=/ctx \

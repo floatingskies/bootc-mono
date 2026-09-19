@@ -37,6 +37,31 @@ The Homebrew bootstrap and the addon list live in `shared/linuxbrew.sh`; the
 per-distro build tools it needs (`build-essential` / `base-devel` / the
 equivalent zypper set) are added in each `Containerfile`.
 
+## Desktop environments
+
+The images ship a ready-to-boot graphical stack booting straight into
+`graphical.target`:
+
+| Image     | Desktop                                  | Display manager |
+|-----------|------------------------------------------|-----------------|
+| openSUSE  | KDE Plasma (Wayland/X11)                 | SDDM            |
+| Arch      | KDE Plasma (Wayland/X11)                 | SDDM            |
+| Debian    | GNOME                                    | GDM             |
+| Ubuntu    | GNOME with the Ubuntu session extensions | GDM             |
+
+No user account is baked into the images (none of them even allow SSH as a
+preconfigured login), so create one before trying to log in graphically — this
+must be done from the deployed system or at first boot:
+
+```sh
+sudo useradd -m -G wheel,sudo -s /bin/bash user   # wheel on openSUSE/Arch, sudo on Debian/Ubuntu
+sudo passwd user
+```
+
+The display manager (SDDM on openSUSE/Arch, GDM on Debian/Ubuntu) is already
+enabled and will pick up the new account automatically on the next graphical
+boot.
+
 ## Image signing
 
 Published images are signed with cosign using a key stored in the
