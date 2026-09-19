@@ -35,6 +35,31 @@ BREW_PACKAGES=(
   jq
 )
 
+# bootc-rootfs.sh deletes /var, and some distros keep their TLS trust store
+# there (openSUSE: /var/lib/ca-certificates/ca-bundle.pem). Make sure a real
+# CA bundle exists before any https fetch, rebuilding it from the distro
+# toolchain if the common paths were wiped or left dangling.
+ensure_ca_bundle() {
+  for bundle in \
+    /etc/ssl/certs/ca-certificates.crt \
+    /etc/pki/tls/certs/ca-bundle.crt \
+    /etc/ca-certificates/extracted/ca-certificates.crt \
+    /var/lib/ca-certificates/ca-bundle.pem; do
+    if [[ -s "${bundle}" ]]; then
+      return 0
+    fi
+  done
+  if command -v update-ca-certificates >/dev/null 2>&1; then
+    update-ca-certificates 2>/dev/null && return 0
+  fi
+  if command -v update-ca-trust >/dev/null 2>&1; then
+    update-ca-trust 2>/dev/null && return 0
+  fi
+  echo "::error::No TLS CA bundle available; Homebrew installation needs https." >&2
+  echo "::error::The CA store may have lived in /var and been cleared by bootc-rootfs.sh." >&2
+  exit 1
+}
+
 # Bookkeeping so the user/dirs are reproducible after deploy (and so
 # `bootc container lint` doesn't flag them).
 mkdir -p /usr/lib/sysusers.d /usr/lib/tmpfiles.d
@@ -66,6 +91,7 @@ run_as_brew() {
 }
 
 if [[ ! -x "${BREW_PREFIX}/bin/brew" ]]; then
+  ensure_ca_bundle
   curl -fsSL "${BREW_INSTALLER}" -o /tmp/homebrew-install.sh
   run_as_brew "NONINTERACTIVE=1 CI=1 /bin/bash /tmp/homebrew-install.sh"
   rm -f /tmp/homebrew-install.sh
@@ -101,4 +127,4 @@ run_as_brew "
 "
 rm -rf "${BREW_USER_HOME}/.cache/Homebrew" 2>/dev/null || true
 
-run_as_brew "${BREW_PREFIX}/bin/brew --version"
+run_as_brew "export HOMEBREW_NO_AUTO_UPDATE=1 && NONINTERACTIVE=1 ${BREW_PREFIX}/bin/brew --version"

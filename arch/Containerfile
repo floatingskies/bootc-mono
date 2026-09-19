@@ -22,7 +22,7 @@ RUN grep "= */var" /etc/pacman.conf | sed "/= *\/var/s/.*=// ; s/ //" | xargs -n
 
 RUN pacman -Syu --noconfirm
 
-RUN pacman -Sy --noconfirm base base-devel bubblewrap dracut linux linux-firmware ostree btrfs-progs e2fsprogs xfsprogs dosfstools skopeo dbus dbus-glib glib2 ostree shadow openssh procps-ng curl file git && pacman -S --clean --noconfirm
+RUN pacman -Sy --noconfirm base base-devel bubblewrap dracut linux linux-firmware ostree btrfs-progs e2fsprogs xfsprogs dosfstools skopeo dbus dbus-glib glib2 ostree shadow openssh procps-ng curl file git sudo && pacman -S --clean --noconfirm
 
 RUN systemctl enable systemd-networkd systemd-resolved systemd-timesyncd sshd && \
     systemctl mask systemd-firstboot.service

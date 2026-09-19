@@ -21,7 +21,7 @@ FROM base AS system
 COPY --from=builder /output /
 
 RUN --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root --mount=type=tmpfs,dst=/boot apt update -y && \
-  apt install -y btrfs-progs bubblewrap dosfstools e2fsprogs fdisk firmware-linux-free linux-image-generic netplan.io libnss-resolve libnss-myhostname openssh-server skopeo systemd systemd-boot* systemd-resolved xfsprogs libostree-dev build-essential procps curl file git && \
+  apt install -y btrfs-progs bubblewrap dosfstools e2fsprogs fdisk firmware-linux-free linux-image-generic netplan.io libnss-resolve libnss-myhostname openssh-server skopeo systemd systemd-boot* systemd-resolved xfsprogs libostree-dev build-essential procps curl file git sudo && \
   cp /boot/vmlinuz-* "$(find /usr/lib/modules -maxdepth 1 -type d | tail -n 1)/vmlinuz" && \
   apt clean -y
 
