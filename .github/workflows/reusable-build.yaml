@@ -41,7 +41,10 @@ on:
         default: false
     secrets:
       SIGNING_SECRET:
-        description: "The private key used to sign the image"
+        description: "The private key used to sign the image (raw PEM, or base64(PEM))"
+        required: false
+      SIGNING_PASSWORD:
+        description: "Passphrase for the signing key, if it is encrypted"
         required: false
 
 env:
@@ -153,7 +156,8 @@ jobs:
           REMOTE_IMAGE_DIGEST: ${{ steps.push.outputs.remote_image_digest }}
           COSIGN_EXPERIMENTAL: false
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
-        run: cosign sign -y --new-bundle-format=false --use-signing-config=false --key env://COSIGN_PRIVATE_KEY "${IMAGE_REGISTRY}/${IMAGE_NAME}@${REMOTE_IMAGE_DIGEST}"
+          COSIGN_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: cosign sign -y --new-bundle-format=false --use-signing-config=false --key "$(bash shared/signing-key.sh)" "${IMAGE_REGISTRY}/${IMAGE_NAME}@${REMOTE_IMAGE_DIGEST}"
 
       - name: Create Job Outputs
         if: inputs.publish
@@ -276,12 +280,16 @@ jobs:
         uses: sigstore/cosign-installer@v4.0.0
         if: github.event_name != 'pull_request'
 
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
       - name: Publish manifest with unified architecture and sign
         shell: bash
         if: inputs.publish
         env:
           COSIGN_EXPERIMENTAL: false
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+          COSIGN_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
           LABELS: ${{ steps.metadata.outputs.labels }}
           OUTPUT_CSV: ${{ steps.load-outputs.outputs.OUTPUT_CSV }}
           TAGS: ${{ steps.metadata.outputs.tags }}
@@ -316,5 +324,5 @@ jobs:
               podman manifest push --all=false --digestfile=/tmp/digestfile "${TARGET_MANIFEST}" "${TARGET_MANIFEST}:${TAG}"
             done <<< "${TAGS}"
 
-            cosign sign -y --new-bundle-format=false --use-signing-config=false --key env://COSIGN_PRIVATE_KEY "${TARGET_MANIFEST}@$(< /tmp/digestfile)"
+            cosign sign -y --new-bundle-format=false --use-signing-config=false --key "$(bash shared/signing-key.sh)" "${TARGET_MANIFEST}@$(< /tmp/digestfile)"
           done
