@@ -58,7 +58,7 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
 # /var/lib/ca-certificates/ca-bundle.pem), which breaks curl/openssl TLS
 # verification. Restore the trust store into the image's /var seed so the
 # brew install below (and the first-boot /var deployment) keeps it.
-RUN cp -a /etc/ssl.ca-certificates /var/lib/ca-certificates && \
+RUN mkdir -p /var/lib && cp -a /etc/ssl.ca-certificates /var/lib/ca-certificates && \
     rm -rf /etc/ssl.ca-certificates
 
 # Daily-driver tooling: Homebrew (persists on /var) + curated CLI addons.
